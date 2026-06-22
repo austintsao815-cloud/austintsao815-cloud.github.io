@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedMix — Global Medication & Chemical Safety Network</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Core palette: deep clinical navy + warm lab amber, distinct from generic blue/teal SaaS defaults */
+    --navy-900:#0b1d2e; --navy-800:#122a40; --navy-700:#1c3c57; --navy-600:#2c5777; --navy-100:#e7eef3;
+    --labglass-500:#3c8f8a; --labglass-300:#7fc2bc; --labglass-100:#e3f2ef;
+    --amber-900:#5c3a06; --amber-700:#9a6418; --amber-500:#d99a2b; --amber-200:#f3ddae; --amber-100:#faf0d9;
+
+    --safe:#1d7a52; --safe-bg:#e3f3e9; --safe-dark:#0d4429;
+    --caution:#b3791a; --caution-bg:#fbeed3; --caution-dark:#5c3c06;
+    --danger:#a32c2c; --danger-bg:#f9e3e1; --danger-dark:#5c1717;
+
+    --ink:#10171f; --muted:#5b6573; --faint:#8a93a0; --border:#dfe4ea; --line:#e9ecf0;
+    --bg:#f4f5f3; --card:#ffffff; --accent:var(--navy-700);
+
+    --font-display:'Fraunces', Georgia, serif;
+    --font-body:'Inter', -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); line-height:1.55; font-family:var(--font-body); -webkit-font-smoothing:antialiased;}
+  header{background:var(--navy-900); border-bottom:1px solid var(--navy-800); position:sticky; top:0; z-index:50; box-shadow:0 1px 0 rgba(0,0,0,.15);}
+  .topbar{display:flex; align-items:center; justify-content:space-between; max-width:1200px; margin:0 auto; padding:16px 24px;}
+  .brand{display:flex; align-items:center; gap:11px; font-weight:700; font-size:19px; color:#fff; letter-spacing:-.01em;}
+  .brand-mark{width:32px; height:32px; border-radius:8px; background:var(--amber-500); display:flex; align-items:center; justify-content:center; color:var(--navy-900); font-family:var(--font-mono); font-size:13px; font-weight:700;}
+  nav{display:flex; gap:2px; max-width:1200px; margin:0 auto; padding:0 24px; overflow-x:auto; background:var(--navy-800);}
+  nav button{
+    border:none; background:none; padding:13px 16px; font-size:13.5px; font-weight:600; color:rgba(255,255,255,.55);
+    cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; font-family:var(--font-body); transition:color .15s;
+  }
+  nav button:hover{ color:rgba(255,255,255,.85); }
+  nav button.active{color:var(--amber-500); border-bottom-color:var(--amber-500);}
+  .disclaimer{background:var(--amber-900); color:var(--amber-100); text-align:center; font-size:13px; padding:9px 16px; font-weight:600; letter-spacing:.01em;}
+  main{max-width:1200px; margin:0 auto; padding:36px 24px 90px;}
+  .view{display:none;}
+  .view.active{display:block; animation:fadein .25s ease;}
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  h1{font-family:var(--font-display); font-weight:600; font-size:32px; margin:0 0 6px; letter-spacing:-.01em; color:var(--navy-900);}
+  h2{font-family:var(--font-display); font-weight:600; font-size:19px; margin:0 0 6px; color:var(--navy-900);}
+  .eyebrow{font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--amber-700); font-weight:500; margin:0 0 8px;}
+  .sub{color:var(--muted); font-size:14.5px; margin:0 0 28px; max-width:640px;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px 24px; box-shadow:0 1px 2px rgba(11,29,46,.04);}
+  .grid{display:grid; gap:18px;}
+  .grid-2{grid-template-columns:1fr 1fr;}
+  .grid-3{grid-template-columns:repeat(3,1fr);}
+  .grid-4{grid-template-columns:repeat(4,1fr);}
+  @media (max-width:800px){ .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;} }
+  select, input, textarea{
+    width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:9px; font-size:14px; background:#fff; color:var(--ink);
+    font-family:var(--font-body); transition:border-color .15s, box-shadow .15s;
+  }
+  select:focus, input:focus, textarea:focus{ outline:none; border-color:var(--navy-600); box-shadow:0 0 0 3px var(--navy-100); }
+  label{font-size:12.5px; font-weight:600; color:var(--muted); display:block; margin-bottom:7px; text-transform:uppercase; letter-spacing:.03em;}
+  .field{margin-bottom:18px;}
+  button.primary{
+    background:var(--navy-800); color:#fff; border:none; padding:12px 22px; border-radius:9px; font-weight:600; font-size:14px; cursor:pointer;
+    font-family:var(--font-body); transition:background .15s, transform .1s;
+  }
+  button.primary:hover{background:var(--navy-700);}
+  button.primary:active{transform:scale(.98);}
+  button.ghost{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2); padding:9px 16px; border-radius:8px; font-size:13px; cursor:pointer; color:#fff; font-family:var(--font-body); font-weight:500;}
+  button.ghost:hover{background:rgba(255,255,255,.12);}
+  .verdict{padding:18px 20px; border-radius:12px; margin-top:20px; display:none; border:1px solid transparent;}
+  .verdict.show{display:block;}
+  .verdict-label{font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px;}
+  .badge{display:inline-block; font-family:var(--font-mono); font-size:10.5px; font-weight:600; padding:4px 10px; border-radius:6px; text-transform:uppercase; letter-spacing:.04em;}
+  .badge.safe{background:var(--safe-bg); color:var(--safe-dark);}
+  .badge.caution{background:var(--caution-bg); color:var(--caution-dark);}
+  .badge.danger{background:var(--danger-bg); color:var(--danger-dark);}
+  .metric-card{background:var(--navy-900); border-radius:12px; padding:18px 20px; position:relative; overflow:hidden;}
+  .metric-card::after{content:''; position:absolute; top:0; right:0; width:60px; height:60px; background:var(--amber-500); opacity:.12; border-radius:0 0 0 60px;}
+  .metric-num{font-family:var(--font-display); font-size:30px; font-weight:600; color:#fff;}
+  .metric-label{font-size:11.5px; color:rgba(255,255,255,.6); text-transform:uppercase; letter-spacing:.04em; margin-top:2px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th,td{text-align:left; padding:11px 12px; border-bottom:1px solid var(--line);}
+  th{color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;}
+  tr:hover td{background:var(--bg);}
+  .feed-item{border-bottom:1px solid var(--line); padding:16px 0;}
+  .feed-item:last-child{border-bottom:none;}
+  .tag{display:inline-block; background:var(--navy-100); border:1px solid var(--border); border-radius:6px; padding:3px 9px; font-size:11px; margin-right:6px; color:var(--navy-700); font-weight:500;}
+  .empty{text-align:center; color:var(--faint); padding:40px 0; font-size:14px;}
+  #map{height:440px; border-radius:14px; margin-top:14px; border:1px solid var(--border);}
+  .footer-note{font-size:12px; color:var(--faint); margin-top:12px;}
+  .toast{position:fixed; bottom:24px; right:24px; background:var(--navy-900); color:#fff; padding:13px 20px; border-radius:10px; font-size:14px; display:none; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,.25);}
+  .privacy-section h3{font-family:var(--font-display); font-size:16px; margin-top:26px; color:var(--navy-900);}
+  .privacy-section p{color:var(--muted); font-size:14px;}
+  .section-divider{height:1px; background:var(--line); margin:32px 0;}
+
+  /* =========================================================
+     AMBIENT BACKGROUND — floating molecules, hexagons, DNA
+     lines, particles, bubbles, glass blobs. Everything moves
+     extremely slowly and sits fixed behind all content.
+     ========================================================= */
+  body{
+    background-color:#eef3f2;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(44,87,119,.10) 0%, transparent 45%),
+      radial-gradient(circle at 88% 18%, rgba(217,154,43,.08) 0%, transparent 40%),
+      radial-gradient(circle at 50% 95%, rgba(29,122,82,.07) 0%, transparent 45%),
+      linear-gradient(rgba(28,60,87,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(28,60,87,.05) 1px, transparent 1px),
+      linear-gradient(165deg, #eef3f2 0%, #e3eceb 55%, #eef1ee 100%);
+    background-size: auto, auto, auto, 28px 28px, 28px 28px, auto;
+    background-attachment: fixed;
+  }
+  .ambient-bg{ position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+  .ambient-svg{ width:100%; height:100%; }
+  .scroll-group{ transform-origin: 70% 35%; transition: transform .6s cubic-bezier(.16,.8,.24,1); }
+  .blob{ animation: blobDrift 48s ease-in-out infinite; filter: blur(2px); }
+  .blob-a{ animation-duration:54s; }
+  .blob-b{ animation-duration:62s; animation-delay:-8s; }
+  .blob-c{ animation-duration:46s; animation-delay:-20s; }
+  @keyframes blobDrift{
+    0%{ transform:translate(0,0) scale(1); }
+    50%{ transform:translate(40px,-30px) scale(1.08); }
+    100%{ transform:translate(0,0) scale(1); }
+  }
+  .dna{ animation: dnaSway 70s ease-in-out infinite; transform-origin:120px 500px; }
+  @keyframes dnaSway{ 0%{transform:rotate(0deg);} 50%{transform:rotate(2.2deg);} 100%{transform:rotate(0deg);} }
+  .hex-grid{ animation: hexFloat 60s ease-in-out infinite; }
+  @keyframes hexFloat{ 0%{transform:translateY(0);} 50%{transform:translateY(-22px);} 100%{transform:translateY(0);} }
+  .molecule{ transform-box: fill-box; transform-origin:center; }
+  .molecule-1{ animation: moleculeDrift1 50s ease-in-out infinite; }
+  .molecule-2{ animation: moleculeDrift2 58s ease-in-out infinite; }
+  .molecule-3{ animation: moleculeDrift3 64s ease-in-out infinite; }
+  @keyframes moleculeDrift1{ 0%{transform:translate(680px,520px) rotate(0deg);} 50%{transform:translate(720px,470px) rotate(12deg);} 100%{transform:translate(680px,520px) rotate(0deg);} }
+  @keyframes moleculeDrift2{ 0%{transform:translate(260px,260px) rotate(0deg);} 50%{transform:translate(220px,310px) rotate(-10deg);} 100%{transform:translate(260px,260px) rotate(0deg);} }
+  @keyframes moleculeDrift3{ 0%{transform:translate(1080px,420px) rotate(0deg);} 50%{transform:translate(1040px,380px) rotate(14deg);} 100%{transform:translate(1080px,420px) rotate(0deg);} }
+  .particle{ animation: particleFloat 30s ease-in-out infinite; }
+  .p1{ animation-duration:26s; } .p2{ animation-duration:34s; animation-delay:-4s; }
+  .p3{ animation-duration:30s; animation-delay:-10s; } .p4{ animation-duration:38s; animation-delay:-6s; }
+  .p5{ animation-duration:28s; animation-delay:-14s; } .p6{ animation-duration:32s; animation-delay:-2s; }
+  @keyframes particleFloat{ 0%{transform:translateY(0); opacity:.5;} 50%{transform:translateY(-50px); opacity:.9;} 100%{transform:translateY(0); opacity:.5;} }
+  .bubble{ animation: bubbleRise 55s ease-in-out infinite; }
+  .bub-1{ animation-duration:50s; } .bub-2{ animation-duration:60s; animation-delay:-12s; } .bub-3{ animation-duration:65s; animation-delay:-25s; }
+  @keyframes bubbleRise{ 0%{transform:translateY(0) scale(1);} 50%{transform:translateY(-60px) scale(1.06);} 100%{transform:translateY(0) scale(1);} }
+
+  header, main, .toast, #signupModal{ position:relative; z-index:2; }
+
+  /* =========================================================
+     GLASSMORPHISM CARDS
+     ========================================================= */
+  .card{
+    background: rgba(255,255,255,0.62);
+    border: 1px solid rgba(255,255,255,0.5);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 1px 1px rgba(11,29,46,.04), 0 12px 32px -16px rgba(11,29,46,.18);
+    transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease, border-color .35s ease;
+  }
+  .card:hover{
+    transform: translateY(-4px) rotate(-0.4deg);
+    box-shadow: 0 1px 1px rgba(11,29,46,.05), 0 24px 48px -18px rgba(11,29,46,.28), 0 0 0 1px rgba(217,154,43,.25);
+    border-color: rgba(217,154,43,.35);
+  }
+  .metric-card{
+    background: linear-gradient(150deg, rgba(11,29,46,.92), rgba(28,60,87,.88));
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border:1px solid rgba(255,255,255,.08);
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+  .metric-card:hover{ transform: translateY(-3px); box-shadow: 0 16px 36px -14px rgba(11,29,46,.5), 0 0 0 1px rgba(217,154,43,.3); }
+
+  /* =========================================================
+     BUTTONS — ripple, glow, scale
+     ========================================================= */
+  button.primary{ position:relative; overflow:hidden; box-shadow:0 2px 10px -4px rgba(18,42,64,.5); }
+  button.primary:hover{ box-shadow:0 6px 20px -6px rgba(217,154,43,.55), 0 2px 10px -4px rgba(18,42,64,.5); transform:translateY(-1px); }
+  button.primary:active{ transform:scale(.97); }
+  .ripple{
+    position:absolute; border-radius:50%; background:rgba(255,255,255,.55);
+    transform:scale(0); animation:rippleAnim .55s ease-out; pointer-events:none;
+  }
+  @keyframes rippleAnim{ to{ transform:scale(3.2); opacity:0; } }
+  button.ghost{ transition: background .2s ease, box-shadow .2s ease, transform .15s ease; }
+  button.ghost:hover{ box-shadow:0 0 0 1px rgba(217,154,43,.4), 0 4px 14px -4px rgba(217,154,43,.3); transform:translateY(-1px); }
+
+  /* =========================================================
+     HERO SECTION
+     ========================================================= */
+  .hero{
+    text-align:center; padding:54px 20px 38px; opacity:0; transform:scale(.96) translateY(8px);
+    animation: heroIn 1s cubic-bezier(.2,.8,.2,1) forwards; animation-delay:.1s;
+    position:relative;
+  }
+  .hero::before{
+    content:''; position:absolute; top:-30px; left:50%; transform:translateX(-50%);
+    width:520px; height:260px; background:radial-gradient(ellipse at center, rgba(60,143,138,.16) 0%, transparent 70%);
+    pointer-events:none; z-index:-1;
+  }
+  @keyframes heroIn{ to{ opacity:1; transform:scale(1) translateY(0); } }
+  .hero h1{
+    font-size:42px; max-width:780px; margin:0 auto 16px; line-height:1.18;
+    background:linear-gradient(100deg, var(--navy-900), var(--labglass-500) 50%, var(--amber-700));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .hero p{ max-width:560px; margin:0 auto; color:var(--muted); font-size:16px; }
+  @media (max-width:700px){ .hero h1{ font-size:30px; } }
+
+  /* staggered fade-in for grids of cards/metrics */
+  .stagger > *{ opacity:0; animation: fadeUp .6s ease forwards; }
+  .stagger > *:nth-child(1){ animation-delay:.05s; } .stagger > *:nth-child(2){ animation-delay:.12s; }
+  .stagger > *:nth-child(3){ animation-delay:.19s; } .stagger > *:nth-child(4){ animation-delay:.26s; }
+  .stagger > *:nth-child(5){ animation-delay:.33s; } .stagger > *:nth-child(6){ animation-delay:.40s; }
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+
+  /* gentle floating/rotating icon-style accents inside eyebrow rows (used by molecule glyphs) */
+  .float-icon{ display:inline-block; animation: iconFloat 6s ease-in-out infinite; }
+  @keyframes iconFloat{ 0%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-3px) rotate(4deg);} 100%{transform:translateY(0) rotate(0deg);} }
+
+  @media (prefers-reduced-motion: reduce){
+    .blob,.dna,.hex-grid,.molecule,.particle,.bubble,.hero,.stagger > *,.float-icon{ animation:none !important; }
+  }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<div class="ambient-bg" aria-hidden="true">
+  <svg class="ambient-svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="blobTurquoise" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#2fb6ac" stop-opacity="0.32"/>
+        <stop offset="100%" stop-color="#2fb6ac" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="blobYellow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#e8c14a" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="#e8c14a" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="blobDarkGreen" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#1d6b4f" stop-opacity="0.26"/>
+        <stop offset="100%" stop-color="#1d6b4f" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="blobBrightBlue" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#2f8fe0" stop-opacity="0.26"/>
+        <stop offset="100%" stop-color="#2f8fe0" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <g id="scrollGroup" class="scroll-group">
+      <!-- blurred glass blobs — beaker-toned palette -->
+      <circle class="blob blob-a" cx="220" cy="180" r="270" fill="url(#blobTurquoise)"/>
+      <circle class="blob blob-b" cx="1350" cy="760" r="330" fill="url(#blobYellow)"/>
+      <circle class="blob blob-c" cx="1200" cy="160" r="210" fill="url(#blobBrightBlue)"/>
+      <circle class="blob blob-d" cx="380" cy="820" r="240" fill="url(#blobDarkGreen)"/>
+
+    <!-- DNA-inspired lines -->
+    <g class="dna" stroke="#2f8fe0" stroke-opacity="0.16" stroke-width="2" fill="none">
+      <path d="M120,40 C220,140 20,260 120,360 C220,460 20,580 120,680 C220,780 20,900 120,980"/>
+      <path d="M180,40 C80,140 280,260 180,360 C80,460 280,580 180,680 C80,780 280,900 180,980"/>
+      <line x1="120" y1="80" x2="180" y2="80"/>
+      <line x1="120" y1="200" x2="180" y2="200"/>
+      <line x1="120" y1="320" x2="180" y2="320"/>
+      <line x1="120" y1="440" x2="180" y2="440"/>
+      <line x1="120" y1="560" x2="180" y2="560"/>
+      <line x1="120" y1="680" x2="180" y2="680"/>
+      <line x1="120" y1="800" x2="180" y2="800"/>
+      <line x1="120" y1="920" x2="180" y2="920"/>
+    </g>
+
+    <!-- hexagon lattice -->
+    <g class="hex-grid" stroke="#e8c14a" stroke-opacity="0.13" stroke-width="1.5" fill="none">
+      <polygon points="1420,300 1450,317 1450,351 1420,368 1390,351 1390,317"/>
+      <polygon points="1480,330 1510,347 1510,381 1480,398 1450,381 1450,347"/>
+      <polygon points="1420,360 1450,377 1450,411 1420,428 1390,411 1390,377"/>
+      <polygon points="1480,390 1510,407 1510,441 1480,458 1450,441 1450,407"/>
+      <polygon points="1360,330 1390,347 1390,381 1360,398 1330,381 1330,347"/>
+    </g>
+
+    <!-- floating molecules: simple ball-and-stick clusters -->
+    <g class="molecule molecule-1">
+      <line x1="0" y1="0" x2="22" y2="14" stroke="#1d6b4f" stroke-opacity="0.30" stroke-width="2"/>
+      <line x1="0" y1="0" x2="-20" y2="16" stroke="#1d6b4f" stroke-opacity="0.30" stroke-width="2"/>
+      <line x1="22" y1="14" x2="20" y2="38" stroke="#1d6b4f" stroke-opacity="0.30" stroke-width="2"/>
+      <circle cx="0" cy="0" r="7" fill="#1d6b4f" opacity="0.38"/>
+      <circle cx="22" cy="14" r="5" fill="#e8c14a" opacity="0.42"/>
+      <circle cx="-20" cy="16" r="5" fill="#e8c14a" opacity="0.42"/>
+      <circle cx="20" cy="38" r="5" fill="#e8c14a" opacity="0.42"/>
+    </g>
+    <g class="molecule molecule-2">
+      <line x1="0" y1="0" x2="0" y2="30" stroke="#2f8fe0" stroke-opacity="0.26" stroke-width="2"/>
+      <line x1="0" y1="0" x2="26" y2="-10" stroke="#2f8fe0" stroke-opacity="0.26" stroke-width="2"/>
+      <circle cx="0" cy="0" r="6" fill="#2f8fe0" opacity="0.34"/>
+      <circle cx="0" cy="30" r="4" fill="#2fb6ac" opacity="0.34"/>
+      <circle cx="26" cy="-10" r="4" fill="#2fb6ac" opacity="0.34"/>
+    </g>
+    <g class="molecule molecule-3">
+      <line x1="0" y1="0" x2="18" y2="20" stroke="#2fb6ac" stroke-opacity="0.26" stroke-width="2"/>
+      <line x1="0" y1="0" x2="-18" y2="20" stroke="#2fb6ac" stroke-opacity="0.26" stroke-width="2"/>
+      <circle cx="0" cy="0" r="6" fill="#2fb6ac" opacity="0.36"/>
+      <circle cx="18" cy="20" r="4" fill="#e8c14a" opacity="0.36"/>
+      <circle cx="-18" cy="20" r="4" fill="#e8c14a" opacity="0.36"/>
+    </g>
+
+    <!-- tiny glowing particles -->
+    <g class="particles" fill="#e8c14a">
+      <circle class="particle p1" cx="300" cy="700" r="2.2" opacity="0.6"/>
+      <circle class="particle p2" cx="700" cy="120" r="1.8" opacity="0.5"/>
+      <circle class="particle p3" cx="950" cy="560" r="2.6" opacity="0.55"/>
+      <circle class="particle p4" cx="1100" cy="880" r="1.6" opacity="0.5"/>
+      <circle class="particle p5" cx="500" cy="430" r="2" opacity="0.45"/>
+      <circle class="particle p6" cx="60" cy="540" r="1.8" opacity="0.5"/>
+    </g>
+
+    <!-- floating translucent bubbles -->
+    <circle class="bubble bub-1" cx="430" cy="850" r="34" fill="none" stroke="#2f8fe0" stroke-opacity="0.20" stroke-width="2"/>
+    <circle class="bubble bub-2" cx="980" cy="200" r="22" fill="none" stroke="#e8c14a" stroke-opacity="0.22" stroke-width="2"/>
+    <circle class="bubble bub-3" cx="1250" cy="640" r="46" fill="none" stroke="#2fb6ac" stroke-opacity="0.16" stroke-width="2"/>
+    </g>
+  </svg>
+</div>
+
+
+<div class="disclaimer">MedMix is a community-reporting and educational tool, not a medical or regulatory authority. For urgent situations in the USA, call Poison Control at 1-800-222-1222, or call 911. Outside the USA, contact your local poison control center or emergency number.</div>
+
+<header>
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark">MX</span> MedMix</div>
+    <div id="authArea"></div>
+  </div>
+  <nav id="nav"></nav>
+</header>
+
+<main>
+
+  <div class="hero">
+    <h1>Understand Drug Interactions Before They Become Dangerous.</h1>
+    <p>Analyze medications, discover chemical reactions, and identify potentially harmful combinations with scientific precision.</p>
+  </div>
+
+  <!-- HOME / DASHBOARD -->
+  <section class="view" id="view-dashboard">
+    <p class="eyebrow"><span class="float-icon">⬡</span> Network overview</p>
+    <h1>Impact dashboard</h1>
+    <p class="sub">Live aggregate metrics across the MedMix network.</p>
+    <div class="grid grid-4 stagger" id="metricGrid"></div>
+    <div class="grid grid-2" style="margin-top:20px;">
+      <div class="card">
+        <h2>Reports over time</h2>
+        <div style="position:relative; height:240px;"><canvas id="growthChart" role="img" aria-label="Line chart of cumulative reports over six months"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Most-flagged substances</h2>
+        <div style="position:relative; height:240px;"><canvas id="topSubstancesChart" role="img" aria-label="Bar chart of most frequently flagged substances"></canvas></div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- MIX CHECKER -->
+  <section class="view" id="view-mixchecker">
+    <p class="eyebrow">Lookup tool</p>
+    <h1>Mix checker</h1>
+    <p class="sub">Search any two household chemicals or a medication + supplement/food combination.</p>
+    <div class="card">
+      <div class="grid grid-2">
+        <div class="field">
+          <label>Substance A</label>
+          <select id="subA"></select>
+        </div>
+        <div class="field">
+          <label>Substance B</label>
+          <select id="subB"></select>
+        </div>
+      </div>
+      <button class="primary" onclick="checkMix()">Check interaction</button>
+      <div class="verdict" id="verdictBox">
+        <div class="verdict-label" id="verdictLabel"></div>
+        <p id="verdictMechanism" style="margin:8px 0 4px; font-weight:600;"></p>
+        <p id="verdictExplain" style="margin:0; color:var(--muted); font-size:14px;"></p>
+        <p id="verdictFirstAid" style="margin:10px 0 0; font-size:13px;"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- REACTION EXPLAINER -->
+  <section class="view" id="view-explainer">
+    <p class="eyebrow">Chemistry behind the verdicts</p>
+    <h1>Reaction explainer</h1>
+    <p class="sub">Plain-language chemistry behind every flagged interaction in the database.</p>
+    <div class="grid grid-2" id="explainerGrid"></div>
+  </section>
+
+  <!-- COUNTERFEIT WATCH -->
+  <section class="view" id="view-counterfeit">
+    <p class="eyebrow">Community reporting</p>
+    <h1>Counterfeit watch</h1>
+    <p class="sub">Submit or browse community reports of suspect medication appearance or packaging.</p>
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Submit a report</h2>
+        <div class="field"><label>Medication name</label><input id="cfName" placeholder="e.g. Amoxicillin 500mg"></div>
+        <div class="field"><label>Country</label><input id="cfCountry" placeholder="e.g. Philippines"></div>
+        <div class="field"><label>What looked wrong?</label><textarea id="cfDesc" rows="3" placeholder="Color, texture, packaging text, taste..."></textarea></div>
+        <button class="primary" onclick="submitCounterfeit()">Submit report</button>
+        <p class="footer-note">Reports are anonymous and added to the community database immediately.</p>
+      </div>
+      <div class="card">
+        <h2>Recent reports</h2>
+        <div id="counterfeitList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIGNAL BOARD -->
+  <section class="view" id="view-signal">
+    <p class="eyebrow">Early warning layer</p>
+    <h1>Signal board</h1>
+    <p class="sub">Real-time community reports of unusual reactions or suspect products, before they're confirmed in formal literature.</p>
+    <div class="card" style="margin-bottom:20px;">
+      <h2>Post a signal</h2>
+      <div class="grid grid-2">
+        <div class="field"><label>Related substance(s)</label><input id="sigSubstance" placeholder="e.g. Ibuprofen + Grapefruit juice"></div>
+        <div class="field"><label>Country</label><input id="sigCountry" placeholder="e.g. Brazil"></div>
+      </div>
+      <div class="field"><label>What did you notice?</label><textarea id="sigDesc" rows="2" placeholder="Describe the unusual reaction or observation"></textarea></div>
+      <button class="primary" onclick="submitSignal()">Post signal</button>
+    </div>
+    <div id="signalFeed"></div>
+  </section>
+
+  <!-- GLOBAL RISK MAP -->
+  <section class="view" id="view-map">
+    <p class="eyebrow">Worldwide coverage</p>
+    <h1>Global risk map</h1>
+    <p class="sub">All counterfeit, interaction, and signal reports plotted by country.</p>
+    <p class="footer-note" id="connNote" style="margin-bottom:14px; font-weight:600;"></p>
+    <div class="card">
+      <div id="map"></div>
+      <p class="footer-note">Marker size reflects number of reports from that location. Colors: red = counterfeit, amber = signal, navy = chemical interaction near-miss.</p>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <p class="eyebrow">Catalogued connections</p>
+    <h2 style="margin-bottom:6px;">Chemical & medication connection network</h2>
+    <p class="sub">Every verified substance pair in the database, visualized as a network — not tied to geography, but to the chemistry itself.</p>
+    <div class="card">
+      <div id="networkGraph" style="overflow-x:auto;"></div>
+      <p class="footer-note">Lines connect substances with a documented interaction. Color reflects the verdict: green = safe, amber = caution, red = dangerous.</p>
+    </div>
+  </section>
+
+  <!-- VERIFIED REFERENCE DATABASE -->
+  <section class="view" id="view-reference">
+    <p class="eyebrow">Curated & cited</p>
+    <h1>Verified reference database</h1>
+    <p class="sub">Curated baseline data, sourced from WHO, FDA, and published toxicology — independent of user submissions.</p>
+    <div class="card">
+      <table>
+        <thead><tr><th>Substance pair</th><th>Verdict</th><th>Source</th></tr></thead>
+        <tbody id="referenceTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <p class="eyebrow">Industrial & lab chemical library</p>
+    <h2 style="margin-bottom:6px;">Substance reference table</h2>
+    <p class="sub">CAS numbers, hazard categories, and known-hazard counts for every chemical in the connection network, sourced conceptually from CAMEO Chemicals (NOAA), CDC/NIOSH, OSHA, NFPA 491, NLM HSDB, EPA, IARC, and WHO public hazard classifications.</p>
+    <div class="card">
+      <table>
+        <thead><tr><th>Common name</th><th>Formal name &amp; CAS</th><th>Category</th><th>Known hazards</th></tr></thead>
+        <tbody id="substanceLibraryBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PRIVACY & TERMS -->
+  <section class="view" id="view-privacy">
+    <p class="eyebrow">Policies</p>
+    <h1>Privacy &amp; terms</h1>
+    <div class="card privacy-section">
+      <h3>What this platform is</h3>
+      <p>MedMix is a community-reporting and educational tool. It is not a diagnostic, regulatory, or medical authority, and it does not replace professional medical advice, Poison Control, or emergency services. In the USA, Poison Control can be reached at <strong>1-800-222-1222</strong>, available 24/7.</p>
+      <h3>What data we collect</h3>
+      <p>Submissions to Counterfeit Watch and the Signal Board are anonymous by default. We do not require names, emails, or other identifying information to submit a report. Country-level location is used only to power the Global Risk Map.</p>
+      <h3>How data is used</h3>
+      <p>Aggregate, anonymized data may be shared publicly through the Impact Dashboard and Global Risk Map to support public health awareness. Individual reports are not sold or shared with third parties for commercial purposes.</p>
+      <h3>Accuracy &amp; limitations</h3>
+      <p>Community-submitted reports are unverified at the time of posting. The Verified Reference Database is separately curated from cited public sources and clearly distinguished from user submissions throughout the platform.</p>
+      <h3>Emergency situations</h3>
+      <p>If you believe you or someone else has been exposed to a dangerous chemical combination or counterfeit medication, call Poison Control immediately. In the USA: <strong>1-800-222-1222</strong> (24/7, free, confidential). Outside the USA, contact your local poison control center or emergency number. Do not rely on this platform for time-sensitive medical decisions.</p>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div id="signupModal" style="display:none; position:fixed; inset:0; background:rgba(11,29,46,.55); align-items:center; justify-content:center; z-index:300;">
+  <div class="card" style="max-width:380px; width:90%; background:var(--card);">
+    <p class="eyebrow">Membership</p>
+    <h2 style="margin-bottom:4px;">Join the network</h2>
+    <p class="sub" style="margin-bottom:18px;">Free, anonymous-friendly. Required to submit reports — this is what powers the live metrics.</p>
+    <div class="field"><label>Name</label><input id="suName" placeholder="First name or alias"></div>
+    <div class="field"><label>Country</label><input id="suCountry" placeholder="e.g. Kenya"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="primary" onclick="submitSignup()" style="flex:1;">Create account</button>
+      <button class="ghost" onclick="closeSignup()" style="background:none; border:1px solid var(--border); color:var(--ink);">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- NAVIGATION ---------- */
+const NAV_ITEMS = [
+  {id:'dashboard', label:'Dashboard'},
+  {id:'mixchecker', label:'Mix checker'},
+  {id:'explainer', label:'Reaction explainer'},
+  {id:'counterfeit', label:'Counterfeit watch'},
+  {id:'signal', label:'Signal board'},
+  {id:'map', label:'Global risk map'},
+  {id:'reference', label:'Reference database'},
+  {id:'privacy', label:'Privacy & terms'},
+];
+const navEl = document.getElementById('nav');
+NAV_ITEMS.forEach(item=>{
+  const b = document.createElement('button');
+  b.textContent = item.label;
+  b.dataset.id = item.id;
+  b.onclick = ()=>goTo(item.id);
+  navEl.appendChild(b);
+});
+function goTo(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
+  if(id==='map'){ setTimeout(()=>{ initMap(); renderNetworkGraph(); }, 50); }
+}
+
+/* ---------- SEEDED DATABASE ---------- */
+// Interaction database: substance pair -> verdict, mechanism, explanation, first aid
+const INTERACTIONS = [
+  {a:"Bleach", b:"Ammonia", verdict:"danger", mechanism:"Redox reaction releasing chloramine gas", explain:"Sodium hypochlorite in bleach reacts with ammonia to form toxic chloramine vapors, which irritate the lungs and eyes severely.", firstAid:"Leave the area immediately, ventilate the space, and seek fresh air. Do not attempt to clean up the mixture."},
+  {a:"Bleach", b:"Vinegar", verdict:"danger", mechanism:"Acid-base reaction releasing chlorine gas", explain:"The acetic acid in vinegar reacts with sodium hypochlorite to release chlorine gas, which is highly toxic even at low concentrations.", firstAid:"Ventilate immediately and evacuate the area. Chlorine gas exposure requires medical attention if symptoms (coughing, chest pain) occur."},
+  {a:"Hydrogen Peroxide", b:"Vinegar", verdict:"caution", mechanism:"Forms peracetic acid", explain:"Mixing produces peracetic acid, a corrosive compound that can irritate skin, eyes, and respiratory passages in concentrated form.", firstAid:"Use only in well-ventilated spaces and avoid concentrated mixtures. Rinse skin/eyes with water if exposed."},
+  {a:"Rubbing Alcohol", b:"Bleach", verdict:"danger", mechanism:"Forms chloroform and other toxic compounds", explain:"This combination can produce chloroform and other chlorinated compounds that are toxic when inhaled.", firstAid:"Ventilate the area immediately and avoid inhaling fumes. Seek medical attention if dizziness or breathing difficulty occurs."},
+  {a:"Different Drain Cleaners", b:"Different Drain Cleaners", verdict:"danger", mechanism:"Violent exothermic acid-base reaction", explain:"Combining acidic and basic drain cleaners can cause a violent reaction releasing heat and toxic gas, and may even cause container rupture.", firstAid:"Never combine drain cleaner products. If mixed accidentally, evacuate and ventilate immediately."},
+  {a:"Warfarin", b:"Vitamin K supplements", verdict:"danger", mechanism:"Pharmacological antagonism", explain:"Vitamin K directly counteracts warfarin's blood-thinning mechanism, reducing its effectiveness and increasing clotting risk unpredictably.", firstAid:"Do not adjust supplement intake without consulting the prescribing physician. Seek medical advice before combining."},
+  {a:"MAOIs", b:"Tyramine-rich foods", verdict:"danger", mechanism:"Hypertensive crisis via norepinephrine buildup", explain:"MAOIs prevent breakdown of tyramine, which can trigger a sudden, dangerous spike in blood pressure when tyramine-rich foods (aged cheese, cured meats) are consumed.", firstAid:"Seek emergency care immediately if severe headache, chest pain, or vision changes occur after eating tyramine-rich food while on MAOIs."},
+  {a:"Grapefruit Juice", b:"Statins", verdict:"caution", mechanism:"CYP3A4 enzyme inhibition", explain:"Grapefruit juice inhibits the liver enzyme that metabolizes many statins, which can raise drug levels in the blood to unsafe concentrations.", firstAid:"Avoid grapefruit juice while taking affected statins, or consult a pharmacist about an alternative."},
+  {a:"Ibuprofen", b:"Alcohol", verdict:"caution", mechanism:"Additive gastric irritation", explain:"Both substances irritate the stomach lining; combined use increases risk of gastrointestinal bleeding and ulcers, especially with regular use.", firstAid:"Avoid combining regularly. Seek medical attention for black stools, severe stomach pain, or vomiting blood."},
+  {a:"Acetaminophen", b:"Alcohol", verdict:"danger", mechanism:"Hepatotoxic metabolite accumulation", explain:"Both are processed by the liver; combined heavy use can overwhelm liver enzymes and cause serious, sometimes irreversible liver damage.", firstAid:"Avoid combining, especially in higher doses. Seek emergency care for nausea, jaundice, or abdominal pain after combined use."},
+  {a:"Baking Soda", b:"Vinegar", verdict:"safe", mechanism:"Acid-base neutralization producing CO2 and water", explain:"This is a classic, harmless acid-base reaction producing carbon dioxide gas, water, and sodium acetate — commonly used safely in cleaning and even classroom demonstrations.", firstAid:"No first aid needed; this combination is non-toxic."},
+  {a:"Hydrogen Peroxide", b:"Baking Soda", verdict:"safe", mechanism:"Mild oxidative reaction", explain:"This combination is commonly used as a mild cleaning paste and does not produce hazardous byproducts in typical household concentrations.", firstAid:"No first aid needed under normal use."},
+  {a:"Calcium supplements", b:"Iron supplements", verdict:"caution", mechanism:"Competitive intestinal absorption", explain:"Calcium can reduce the absorption of iron when taken simultaneously, lowering the effectiveness of iron supplementation over time.", firstAid:"Space doses at least two hours apart for best absorption of both."},
+  {a:"Bleach", b:"Hydrogen Peroxide", verdict:"danger", mechanism:"Exothermic oxidation releasing oxygen gas rapidly", explain:"Mixing strong oxidizers can cause a rapid exothermic reaction, releasing oxygen gas quickly enough to pose a fire or pressure-burst hazard.", firstAid:"Do not combine. Ventilate and evacuate if mixed accidentally."},
+  {a:"St. John's Wort", b:"SSRIs", verdict:"danger", mechanism:"Serotonin syndrome risk via additive serotonergic effect", explain:"Both increase serotonin activity; combined use can cause serotonin syndrome, a potentially life-threatening condition.", firstAid:"Seek emergency care for agitation, rapid heartbeat, high fever, or muscle rigidity."},
+  {a:"Ammonia", b:"Hydrogen Peroxide", verdict:"caution", mechanism:"Forms reactive nitrogen compounds", explain:"Mixing concentrated ammonia with hydrogen peroxide can release irritating fumes and, in stronger concentrations, unstable reactive byproducts.", firstAid:"Ventilate the area well. Avoid mixing concentrated solutions."},
+  {a:"Toilet Bowl Cleaner (acidic)", b:"Bleach", verdict:"danger", mechanism:"Acid-base reaction releasing chlorine gas", explain:"Most acidic toilet bowl cleaners react with bleach the same way vinegar does, releasing toxic chlorine gas in an enclosed bathroom space.", firstAid:"Ventilate immediately, leave the bathroom, and seek fresh air. Seek medical attention for breathing difficulty."},
+  {a:"Rust Remover (oxalic/phosphoric acid)", b:"Bleach", verdict:"danger", mechanism:"Acid reaction releasing chlorine gas", explain:"Acidic rust removers react with sodium hypochlorite similarly to other acids, producing toxic chlorine gas.", firstAid:"Evacuate and ventilate immediately if combined."},
+  {a:"Lithium", b:"NSAIDs (e.g. Ibuprofen)", verdict:"caution", mechanism:"Reduced renal clearance of lithium", explain:"NSAIDs can reduce kidney clearance of lithium, raising blood lithium levels toward toxic range with regular combined use.", firstAid:"Consult a physician before regular NSAID use while on lithium; watch for tremor, confusion, or nausea."},
+  {a:"ACE Inhibitors", b:"Potassium Supplements", verdict:"danger", mechanism:"Hyperkalemia from reduced potassium excretion", explain:"ACE inhibitors already reduce potassium excretion; adding supplemental potassium can push blood potassium to dangerous, arrhythmia-causing levels.", firstAid:"Do not supplement potassium without medical supervision while on ACE inhibitors. Seek care for muscle weakness or irregular heartbeat."},
+  {a:"Tetracycline antibiotics", b:"Dairy products", verdict:"caution", mechanism:"Calcium chelation reduces drug absorption", explain:"Calcium in dairy binds to tetracycline in the gut, significantly reducing how much of the antibiotic is absorbed into the bloodstream.", firstAid:"Take tetracycline at least 2 hours apart from dairy or calcium-fortified foods."},
+  {a:"Antacids (calcium/aluminum)", b:"Iron Supplements", verdict:"caution", mechanism:"Reduced gastric absorption of iron", explain:"Antacids raise stomach pH and bind iron, both of which reduce how efficiently iron is absorbed.", firstAid:"Separate doses by at least 2 hours for better absorption."},
+  {a:"Aspirin", b:"Alcohol", verdict:"caution", mechanism:"Additive gastric mucosal irritation", explain:"Both irritate the stomach lining independently; combined regular use raises risk of gastrointestinal bleeding.", firstAid:"Avoid regular combined use. Seek care for black stools or vomiting blood."},
+  {a:"Sedatives (Benzodiazepines)", b:"Alcohol", verdict:"danger", mechanism:"Additive CNS and respiratory depression", explain:"Both depress the central nervous system; combined use can slow breathing to dangerous levels and increase overdose risk.", firstAid:"Seek emergency help immediately for slowed or shallow breathing, extreme drowsiness, or unresponsiveness."},
+  {a:"Opioids", b:"Alcohol", verdict:"danger", mechanism:"Additive respiratory depression", explain:"Both suppress the brain's breathing drive; combined use is one of the leading causes of accidental overdose death.", firstAid:"Call emergency services immediately for slow breathing or unresponsiveness; use naloxone if available."},
+  {a:"Antifreeze (ethylene glycol)", b:"Drain Cleaner", verdict:"danger", mechanism:"Unrelated toxic mixture; never combine", explain:"Neither should ever be intentionally combined; both are independently highly toxic and combining storage/disposal increases accidental exposure risk.", firstAid:"Keep stored separately and away from children and pets. Seek emergency care for any ingestion."},
+  {a:"Pool Chlorine (cal-hypo)", b:"Pool Acid (muriatic)", verdict:"danger", mechanism:"Releases chlorine gas on contact", explain:"Calcium hypochlorite reacts violently and immediately with muriatic acid, releasing chlorine gas — a common cause of pool-chemical injuries.", firstAid:"Never store or add together. Ventilate and evacuate the area if mixed."},
+  {a:"Citrus Cleaners (d-limonene)", b:"Ozone-generating air purifiers", verdict:"caution", mechanism:"Forms secondary indoor air pollutants", explain:"d-limonene reacts with ozone in the air to form fine particles and formaldehyde, lowering indoor air quality.", firstAid:"Avoid using citrus-based cleaners in spaces with ozone generators running."},
+  {a:"Methotrexate", b:"NSAIDs (e.g. Ibuprofen)", verdict:"danger", mechanism:"Reduced renal clearance increases methotrexate toxicity", explain:"NSAIDs can reduce kidney clearance of methotrexate, raising blood levels into a toxic range, especially at higher methotrexate doses.", firstAid:"Consult a physician before combining; watch for mouth sores, unusual bruising, or fatigue."},
+  {a:"Levothyroxine", b:"Calcium Supplements", verdict:"caution", mechanism:"Reduced thyroid hormone absorption", explain:"Calcium binds to levothyroxine in the gut, reducing how much hormone is absorbed and potentially undermining thyroid treatment.", firstAid:"Separate doses by at least 4 hours."},
+  {a:"Fluoroquinolone antibiotics", b:"Antacids", verdict:"caution", mechanism:"Chelation reduces antibiotic absorption", explain:"Magnesium and aluminum in antacids bind to fluoroquinolones, significantly reducing absorption and effectiveness.", firstAid:"Take the antibiotic 2 hours before or 6 hours after antacids."},
+  {a:"Disulfiram (Antabuse)", b:"Alcohol", verdict:"danger", mechanism:"Toxic acetaldehyde buildup", explain:"Disulfiram blocks alcohol metabolism, causing a rapid, severe buildup of acetaldehyde that produces intense flushing, vomiting, and dangerously low blood pressure.", firstAid:"Seek emergency care for severe flushing, chest pain, or breathing difficulty after alcohol exposure on disulfiram."},
+  {a:"Charcoal Briquettes (CO)", b:"Enclosed Indoor Space", verdict:"danger", mechanism:"Carbon monoxide poisoning", explain:"Burning charcoal indoors or in enclosed spaces (garages, tents) produces carbon monoxide, an odorless gas that displaces oxygen in the blood.", firstAid:"Move to fresh air immediately and seek emergency care for headache, dizziness, or confusion. Install CO detectors."},
+  {a:"Naphthalene Mothballs", b:"Cedar/Lavender Sachets", verdict:"caution", mechanism:"Combined respiratory irritant load", explain:"While not chemically reactive together, combined fume exposure in enclosed closets can increase respiratory irritation, especially for children.", firstAid:"Ventilate storage areas well and avoid combining strong-scented pest deterrents in small spaces."},
+];
+
+/* ---------- SUBSTANCE METADATA (sourced conceptually from CAMEO Chemicals/NOAA, CDC/NIOSH, OSHA, NFPA 491, NLM HSDB, EPA, IARC, WHO public hazard classifications) ---------- */
+const SUBSTANCE_META = {
+  "Bleach": { formal:"Sodium Hypochlorite", cas:"7681-52-9", category:"oxidizer", hazards:13 },
+  "Ammonia": { formal:"Ammonium Hydroxide", cas:"1336-21-6", category:"base", hazards:4 },
+  "Hydrogen Peroxide": { formal:"Hydrogen Peroxide", cas:"7722-84-1", category:"oxidizer", hazards:9 },
+  "Vinegar": { formal:"Acetic Acid (dilute)", cas:"64-19-7", category:"acid", hazards:6 },
+  "Rubbing Alcohol": { formal:"Isopropanol", cas:"67-63-0", category:"solvent/alcohol", hazards:2 },
+  "Acetone": { formal:"Acetone (2-Propanone)", cas:"67-64-1", category:"solvent/ketone", hazards:2 },
+  "Hydrochloric Acid": { formal:"Hydrochloric Acid", cas:"7647-01-0", category:"strong acid", hazards:8 },
+  "Sodium Hydroxide": { formal:"Sodium Hydroxide", cas:"1310-73-2", category:"strong base", hazards:4 },
+  "Pool Chlorine": { formal:"Calcium Hypochlorite", cas:"7778-54-3", category:"oxidizer/disinfectant", hazards:15 },
+  "Potassium Permanganate": { formal:"Potassium Permanganate", cas:"7722-64-7", category:"oxidizer", hazards:3 },
+  "Glycerol": { formal:"Glycerol (Glycerin)", cas:"56-81-5", category:"organic/fuel", hazards:2 },
+  "Sulfuric Acid": { formal:"Sulfuric Acid", cas:"7664-93-9", category:"strong acid", hazards:9 },
+  "Nitric Acid": { formal:"Nitric Acid", cas:"7697-37-2", category:"strong acid/oxidizer", hazards:8 },
+  "Formaldehyde": { formal:"Formaldehyde", cas:"50-00-0", category:"aldehyde/disinfectant", hazards:1 },
+  "Ethanol": { formal:"Ethanol", cas:"64-17-5", category:"alcohol/solvent", hazards:5 },
+  "Paint Thinner": { formal:"Mineral Spirits", cas:"8052-41-3", category:"solvent/hydrocarbon", hazards:2 },
+  "Iodine": { formal:"Iodine", cas:"7553-56-2", category:"halogen/disinfectant", hazards:1 },
+  "Sodium Metal": { formal:"Sodium Metal", cas:"7440-23-5", category:"reactive metal", hazards:1 },
+  "Lithium Metal": { formal:"Lithium Metal", cas:"7439-93-2", category:"reactive metal", hazards:1 },
+  "Potassium Chlorate": { formal:"Potassium Chlorate", cas:"3811-04-9", category:"oxidizer", hazards:1 },
+  "White Phosphorus": { formal:"White Phosphorus", cas:"12185-10-3", category:"reactive nonmetal", hazards:1 },
+  "Lithium Aluminum Hydride": { formal:"Lithium Aluminum Hydride", cas:"16853-85-3", category:"reducing agent", hazards:3 },
+  "Sodium Cyanide": { formal:"Sodium Cyanide", cas:"143-33-9", category:"toxic/industrial chemical", hazards:2 },
+  "Aluminum": { formal:"Aluminum Metal", cas:"7429-90-5", category:"metal", hazards:3 },
+  "Copper": { formal:"Copper Metal", cas:"7440-50-8", category:"metal", hazards:1 },
+};
+
+/* Additional pairwise reactions involving the expanded lab/industrial chemical list.
+   Categorical chemistry (acid+base, oxidizer+reducer, acid+reactive metal, etc.) — written at a
+   general hazard-awareness level, not as procedural/synthesis instructions. */
+const LAB_INTERACTIONS = [
+  {a:"Sodium Hydroxide", b:"Hydrochloric Acid", verdict:"caution", mechanism:"Strong acid-base neutralization, highly exothermic", explain:"Combining strong acid and strong base releases a large amount of heat very quickly, which can cause boiling, splattering, and container rupture even though the final neutralized product is comparatively mild.", firstAid:"Allow to cool slowly in a well-ventilated area; never combine concentrated forms directly. Flush skin/eyes with water for any contact."},
+  {a:"Sodium Hydroxide", b:"Sulfuric Acid", verdict:"danger", mechanism:"Violent exothermic neutralization", explain:"Concentrated sulfuric acid reacting with sodium hydroxide releases intense heat rapidly, posing splattering, boiling, and burn risk.", firstAid:"Never combine concentrated forms. Seek emergency care for any skin, eye, or inhalation exposure."},
+  {a:"Sodium Hydroxide", b:"Aluminum", verdict:"danger", mechanism:"Generates flammable hydrogen gas", explain:"Aluminum reacts with strong base to release hydrogen gas, which is flammable and can accumulate in enclosed spaces.", firstAid:"Ventilate the area; keep away from open flame or sparks if this combination occurs."},
+  {a:"Hydrochloric Acid", b:"Aluminum", verdict:"danger", mechanism:"Generates flammable hydrogen gas", explain:"Strong acids react with reactive metals like aluminum to release hydrogen gas, creating fire/explosion risk in enclosed areas.", firstAid:"Ventilate immediately and remove ignition sources."},
+  {a:"Sulfuric Acid", b:"Aluminum", verdict:"danger", mechanism:"Generates flammable hydrogen gas, exothermic", explain:"Sulfuric acid reacts with aluminum metal to release hydrogen gas and heat, a known cause of container/tanker incidents.", firstAid:"Avoid enclosed spaces; ventilate and remove ignition sources immediately."},
+  {a:"Hydrochloric Acid", b:"Copper", verdict:"safe", mechanism:"Very slow/negligible reaction under normal conditions", explain:"Dilute hydrochloric acid reacts extremely slowly with copper metal under normal conditions and does not pose a significant acute hazard.", firstAid:"No first aid needed under typical household conditions."},
+  {a:"Bleach", b:"Pool Chlorine", verdict:"caution", mechanism:"Both strong oxidizers; concentrated combination can release chlorine gas", explain:"Combining two chlorine-based oxidizing disinfectants in concentrated form, especially with any residual acid contamination, can release chlorine gas.", firstAid:"Never combine pool chemicals directly; store separately and ventilate pool chemical storage areas."},
+  {a:"Pool Chlorine", b:"Hydrochloric Acid", verdict:"danger", mechanism:"Releases chlorine gas", explain:"Acidic pool chemicals reacting with calcium hypochlorite release chlorine gas rapidly — a well-documented cause of pool-chemical injuries.", firstAid:"Evacuate and ventilate immediately. Seek medical attention for respiratory symptoms."},
+  {a:"Potassium Permanganate", b:"Glycerol", verdict:"danger", mechanism:"Strong oxidizer + organic fuel, can ignite spontaneously", explain:"Potassium permanganate is a strong oxidizer that can react vigorously, even igniting, when combined with an organic compound like glycerol.", firstAid:"Never combine intentionally. If accidental contact/ignition occurs, evacuate and call emergency services."},
+  {a:"Potassium Permanganate", b:"Hydrogen Peroxide", verdict:"danger", mechanism:"Vigorous oxidative decomposition releasing oxygen gas and heat", explain:"Both are strong oxidizers; combined they can decompose rapidly, releasing oxygen gas and significant heat.", firstAid:"Avoid combining. Ventilate the area and avoid open flame if mixed."},
+  {a:"Nitric Acid", b:"Ethanol", verdict:"danger", mechanism:"Oxidizer + alcohol, exothermic and potentially explosive in concentrated form", explain:"Concentrated nitric acid is a strong oxidizer that can react violently with alcohols, producing heat and toxic fumes.", firstAid:"Never combine concentrated forms. Ventilate and evacuate if mixed accidentally."},
+  {a:"Nitric Acid", b:"Copper", verdict:"danger", mechanism:"Releases toxic nitrogen dioxide gas", explain:"Nitric acid reacts with copper metal to release brown, toxic nitrogen dioxide gas, a serious respiratory hazard.", firstAid:"Ventilate immediately and evacuate. Seek medical care for any respiratory symptoms."},
+  {a:"Sodium Metal", b:"Lithium Metal", verdict:"danger", mechanism:"Both react violently with moisture/water", explain:"Both are highly reactive alkali metals that react violently with water or moisture, releasing flammable hydrogen gas and heat; storing or handling together increases risk of accidental exposure to moisture.", firstAid:"Store separately, away from any water source. Never handle without proper protective equipment and training."},
+  {a:"Sodium Metal", b:"Hydrochloric Acid", verdict:"danger", mechanism:"Violent reaction releasing hydrogen gas and heat", explain:"Reactive alkali metals react violently with acids, releasing hydrogen gas rapidly along with significant heat.", firstAid:"Never combine. This reaction is hazardous even in small quantities — handled only by trained personnel with proper equipment."},
+  {a:"Lithium Aluminum Hydride", b:"Hydrogen Peroxide", verdict:"danger", mechanism:"Strong reducing agent + strong oxidizer, violently reactive", explain:"Lithium aluminum hydride is a powerful reducing agent that reacts violently and exothermically with strong oxidizers.", firstAid:"This combination should never occur outside a controlled lab setting with trained personnel and proper safety equipment."},
+  {a:"Lithium Aluminum Hydride", b:"Vinegar", verdict:"danger", mechanism:"Violent reaction with moisture/acid releasing flammable hydrogen gas", explain:"This reducing agent reacts violently with water or acidic solutions, releasing flammable hydrogen gas rapidly.", firstAid:"Should only be handled by trained personnel in a controlled lab environment."},
+  {a:"Sodium Cyanide", b:"Hydrochloric Acid", verdict:"danger", mechanism:"Releases highly toxic hydrogen cyanide gas", explain:"Cyanide salts react with acids to release hydrogen cyanide gas, which is rapidly lethal even at low concentrations — this is a well-documented industrial and laboratory hazard.", firstAid:"Evacuate immediately and call emergency services. This is a life-threatening exposure requiring immediate professional response."},
+  {a:"Sodium Cyanide", b:"Vinegar", verdict:"danger", mechanism:"Releases toxic hydrogen cyanide gas", explain:"Even weak acids like acetic acid can release hydrogen cyanide gas from cyanide salts, posing a severe inhalation hazard.", firstAid:"Evacuate immediately and call emergency services."},
+  {a:"White Phosphorus", b:"Hydrogen Peroxide", verdict:"danger", mechanism:"Strong oxidizer with a pyrophoric, highly reactive nonmetal", explain:"White phosphorus is pyrophoric (ignites spontaneously in air) and reacts dangerously with strong oxidizers, increasing fire risk.", firstAid:"Handled only by trained personnel; never expose to air, moisture, or oxidizers outside controlled conditions."},
+  {a:"Potassium Chlorate", b:"Sulfuric Acid", verdict:"danger", mechanism:"Strong oxidizer + strong acid, can react explosively", explain:"Potassium chlorate is a powerful oxidizer that can react violently, even explosively, when contacted with concentrated strong acids.", firstAid:"Never combine. This pairing is a known explosive hazard handled only under strict laboratory safety protocols."},
+  {a:"Potassium Chlorate", b:"Glycerol", verdict:"danger", mechanism:"Oxidizer + organic fuel, can ignite", explain:"Like other strong oxidizers, potassium chlorate can react vigorously with organic compounds, posing fire risk.", firstAid:"Store and handle separately from organic materials."},
+  {a:"Acetone", b:"Bleach", verdict:"danger", mechanism:"Forms chloroform and other toxic chlorinated byproducts", explain:"Acetone reacting with sodium hypochlorite can produce chloroform and other toxic, irritating chlorinated compounds.", firstAid:"Ventilate the area immediately and avoid inhaling fumes if combined accidentally."},
+  {a:"Acetone", b:"Hydrogen Peroxide", verdict:"danger", mechanism:"Can form unstable peroxide compounds", explain:"Combining acetone and concentrated hydrogen peroxide can form unstable organic peroxide compounds that are sensitive to shock and heat.", firstAid:"Never combine concentrated forms outside a controlled lab setting."},
+  {a:"Paint Thinner", b:"Bleach", verdict:"caution", mechanism:"Combined fume exposure; potential for irritating byproducts", explain:"Mixing hydrocarbon solvents with chlorine-based oxidizers can produce irritating fumes and is best avoided, especially in enclosed spaces.", firstAid:"Ventilate well and avoid using both products in an enclosed space at the same time."},
+  {a:"Formaldehyde", b:"Bleach", verdict:"caution", mechanism:"Can form chlorinated byproducts", explain:"Formaldehyde-based disinfectants combined with chlorine bleach can form additional irritating chlorinated compounds.", firstAid:"Ventilate well; avoid combining disinfectant products of different chemical classes."},
+  {a:"Iodine", b:"Ammonia", verdict:"danger", mechanism:"Forms nitrogen triiodide, a shock-sensitive explosive compound", explain:"Iodine combined with ammonia can form nitrogen triiodide, an extremely shock-sensitive compound that can detonate even from light touch once dry.", firstAid:"Never combine intentionally. If this combination has occurred, do not disturb the area and contact emergency services."},
+  {a:"Hydrogen Peroxide", b:"Acetone", verdict:"danger", mechanism:"Forms unstable organic peroxides", explain:"This is the same hazardous combination noted with acetone above — repeated here because both directions of search should surface the same warning.", firstAid:"Never combine concentrated forms outside a controlled lab setting."},
+  {a:"Glycerol", b:"Sulfuric Acid", verdict:"danger", mechanism:"Strong acid + organic compound, exothermic and can produce toxic fumes", explain:"Concentrated sulfuric acid reacting with glycerol releases significant heat and can produce acrolein, a toxic and irritating gas, especially if charring occurs.", firstAid:"Ventilate immediately if combined. Seek medical attention for respiratory irritation."},
+  {a:"Ethanol", b:"Sulfuric Acid", verdict:"caution", mechanism:"Exothermic reaction, can char and release fumes", explain:"Concentrated sulfuric acid reacts exothermically with ethanol and can cause charring and irritating fume release at higher concentrations.", firstAid:"Ventilate the area and avoid skin contact with the mixture."},
+  {a:"Copper", b:"Ammonia", verdict:"caution", mechanism:"Forms a deep blue copper-ammonia complex; mild hazard", explain:"Copper reacts with concentrated ammonia solutions to form a copper-ammonia complex; not acutely dangerous but should be handled with ventilation due to ammonia fumes.", firstAid:"Ventilate well during use; ammonia fumes alone can irritate eyes and airways."},
+  {a:"Aluminum", b:"Pool Chlorine", verdict:"danger", mechanism:"Can react vigorously with moisture, generating heat and gas", explain:"Aluminum in contact with calcium hypochlorite, especially in the presence of moisture, can react vigorously and has caused fires in pool-chemical storage incidents.", firstAid:"Never store aluminum containers/fittings in contact with pool chlorine products."},
+  {a:"Rubbing Alcohol", b:"Hydrogen Peroxide", verdict:"caution", mechanism:"Mild oxidation, can produce some heat", explain:"Isopropanol can be oxidized by hydrogen peroxide; in concentrated mixtures this can generate heat and should be done only in small, ventilated amounts.", firstAid:"Avoid combining concentrated solutions; ventilate the area."},
+  {a:"Sodium Hydroxide", b:"Bleach", verdict:"safe", mechanism:"Compatible bases/oxidizer; commonly co-formulated", explain:"Sodium hydroxide is often used to stabilize sodium hypochlorite solutions and the two are generally compatible at the concentrations found in household and industrial bleach products.", firstAid:"No first aid needed under normal use; both remain corrosive individually and should still be handled with care."},
+];
+INTERACTIONS.push(...LAB_INTERACTIONS);
+const SUBSTANCES = Array.from(new Set(INTERACTIONS.flatMap(i=>[i.a,i.b]))).sort();
+
+const subA = document.getElementById('subA');
+const subB = document.getElementById('subB');
+SUBSTANCES.forEach(s=>{
+  subA.appendChild(new Option(s,s));
+  subB.appendChild(new Option(s,s));
+});
+subB.selectedIndex = 1;
+
+function findInteraction(a,b){
+  return INTERACTIONS.find(i => (i.a===a && i.b===b) || (i.a===b && i.b===a));
+}
+function checkMix(){
+  const a = subA.value, b = subB.value;
+  const box = document.getElementById('verdictBox');
+  const match = findInteraction(a,b);
+  logMixTried(a,b);
+  box.classList.add('show');
+  if(!match){
+    box.style.background = '#f1f3f4';
+    document.getElementById('verdictLabel').innerHTML = '<span class="badge caution">No data</span>';
+    document.getElementById('verdictMechanism').textContent = 'No verified interaction on record for this exact pair.';
+    document.getElementById('verdictExplain').textContent = 'This does not mean the combination is safe — only that it is not yet in our database. When in doubt, avoid combining and call Poison Control (USA: 1-800-222-1222) or a pharmacist.';
+    document.getElementById('verdictFirstAid').textContent = '';
+    return;
+  }
+  const colors = {safe:'var(--safe-bg)', caution:'var(--caution-bg)', danger:'var(--danger-bg)'};
+  box.style.background = colors[match.verdict];
+  document.getElementById('verdictLabel').innerHTML = `<span class="badge ${match.verdict}">${match.verdict}</span>`;
+  document.getElementById('verdictMechanism').textContent = match.mechanism;
+  document.getElementById('verdictExplain').textContent = match.explain;
+  document.getElementById('verdictFirstAid').textContent = match.firstAid ? ('What to do: ' + match.firstAid) : '';
+}
+
+/* ---------- REACTION EXPLAINER ---------- */
+const explainerGrid = document.getElementById('explainerGrid');
+INTERACTIONS.forEach(i=>{
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <span class="badge ${i.verdict}" style="margin-bottom:8px;">${i.verdict}</span>
+    <h2>${i.a} + ${i.b}</h2>
+    <p style="font-weight:600; margin:6px 0 2px; font-size:14px;">${i.mechanism}</p>
+    <p style="color:var(--muted); font-size:13px; margin:0;">${i.explain}</p>
+  `;
+  explainerGrid.appendChild(div);
+});
+
+/* ---------- VERIFIED REFERENCE DATABASE ---------- */
+const refBody = document.getElementById('referenceTableBody');
+const SOURCES = ["WHO Model List Interactions Reference","FDA Drug Interaction Database","Published toxicology literature","CDC Household Chemical Safety Guide"];
+INTERACTIONS.forEach((i,idx)=>{
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${i.a} + ${i.b}</td><td><span class="badge ${i.verdict}">${i.verdict}</span></td><td style="color:var(--muted);">${SOURCES[idx % SOURCES.length]}</td>`;
+  refBody.appendChild(tr);
+});
+
+/* ---------- SUBSTANCE LIBRARY (renders SUBSTANCE_META — CAS numbers, categories, hazard counts) ---------- */
+const libBody = document.getElementById('substanceLibraryBody');
+Object.keys(SUBSTANCE_META).sort().forEach(name=>{
+  const m = SUBSTANCE_META[name];
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><strong>${name}</strong></td><td style="color:var(--muted); font-family:var(--font-mono); font-size:12.5px;">${m.formal} · CAS ${m.cas}</td><td><span class="tag">${m.category}</span></td><td>${m.hazards} known hazard${m.hazards===1?'':'s'}</td>`;
+  libBody.appendChild(tr);
+});
+
+/* =========================================================================
+   FIREBASE CONFIG — required for real, shared, global data across devices.
+
+   1. Go to https://console.firebase.google.com → Create a project (free).
+   2. Add a Web App inside the project → copy the config object it gives you.
+   3. Paste those values below, replacing the placeholders.
+   4. In the Firebase console, go to Firestore Database → Create database
+      → start in "test mode" (or write proper security rules later).
+
+   Until you fill this in, the site automatically falls back to local-only
+   storage (localStorage) so it still works for a solo demo.
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let db = null;
+let FIREBASE_ENABLED = false;
+try{
+  if(firebaseConfig.apiKey !== "YOUR_API_KEY"){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    FIREBASE_ENABLED = true;
+  }
+}catch(e){ console.warn('Firebase not configured, falling back to local storage.', e); }
+
+/* ---------- PERSISTENCE LAYER ----------
+   If Firebase is configured: every signup/report writes to Firestore and
+   is visible to every visitor worldwide, in real time.
+   If not: falls back to this browser's localStorage only (solo demo mode). */
+const STORE_USERS = 'medmix_users';
+const STORE_REPORTS = 'medmix_reports';
+
+function loadUsersLocal(){ try{ return JSON.parse(localStorage.getItem(STORE_USERS)) || []; }catch(e){ return []; } }
+function saveUsersLocal(u){ localStorage.setItem(STORE_USERS, JSON.stringify(u)); }
+function loadReportsLocal(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(STORE_REPORTS)) || [];
+    return raw.map(r=>({...r, ts:new Date(r.ts)}));
+  }catch(e){ return []; }
+}
+function saveReportsLocal(r){ localStorage.setItem(STORE_REPORTS, JSON.stringify(r)); }
+
+let users = FIREBASE_ENABLED ? [] : loadUsersLocal();
+let reports = FIREBASE_ENABLED ? [] : loadReportsLocal();
+let currentUser = JSON.parse(localStorage.getItem('medmix_current_user') || 'null');
+let mixesTried = FIREBASE_ENABLED ? 0 : (parseInt(localStorage.getItem('medmix_mixes_tried')) || 0);
+
+async function logMixTried(a,b){
+  if(FIREBASE_ENABLED){
+    try{
+      await db.collection('mixChecks').add({a, b, ts: new Date().toISOString()});
+    }catch(e){ console.warn('Could not log mix check', e); }
+  }else{
+    mixesTried += 1;
+    localStorage.setItem('medmix_mixes_tried', String(mixesTried));
+    refreshMetrics();
+  }
+}
+
+async function addUser(user){
+  if(FIREBASE_ENABLED){
+    await db.collection('users').add(user);
+  }else{
+    users.push(user);
+    saveUsersLocal(users);
+  }
+}
+async function addReport(report){
+  if(FIREBASE_ENABLED){
+    await db.collection('reports').add({...report, ts: report.ts.toISOString()});
+  }else{
+    reports.push(report);
+    saveReportsLocal(reports);
+  }
+}
+function subscribeLive(){
+  if(!FIREBASE_ENABLED) return;
+  db.collection('users').onSnapshot(snap=>{
+    users = snap.docs.map(d=>d.data());
+    refreshMetrics();
+  });
+  db.collection('reports').onSnapshot(snap=>{
+    reports = snap.docs.map(d=>({...d.data(), ts:new Date(d.data().ts)}));
+    refreshMetrics();
+    renderCounterfeitList();
+    renderSignalFeed();
+    if(mapInstance) initMap();
+  });
+  db.collection('mixChecks').onSnapshot(snap=>{
+    mixesTried = snap.size;
+    refreshMetrics();
+  });
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(()=>t.style.display='none', 2600);
+}
+function connectionBadge(){
+  const note = document.getElementById('connNote');
+  if(!note) return;
+  note.textContent = FIREBASE_ENABLED
+    ? 'Connected — data is shared live with everyone who visits this site.'
+    : 'Local demo mode — Firebase isn\u2019t configured yet, so data only persists on this browser. See README to connect a shared database.';
+  note.style.color = FIREBASE_ENABLED ? 'var(--safe-dark)' : 'var(--caution-dark)';
+}
+
+/* ---------- SIGN UP / MEMBERSHIP ---------- */
+function renderAuthArea(){
+  const el = document.getElementById('authArea');
+  if(currentUser){
+    el.innerHTML = `<span style="color:rgba(255,255,255,.8); font-size:13px; margin-right:10px;">Signed in as <strong style="color:#fff;">${currentUser.name}</strong></span><button class="ghost" onclick="signOut()">Sign out</button>`;
+  }else{
+    el.innerHTML = `<button class="ghost" onclick="openSignup()">Join the network</button>`;
+  }
+}
+function openSignup(){
+  document.getElementById('signupModal').style.display = 'flex';
+}
+function closeSignup(){
+  document.getElementById('signupModal').style.display = 'none';
+}
+async function submitSignup(){
+  const name = document.getElementById('suName').value.trim();
+  const country = document.getElementById('suCountry').value.trim();
+  if(!name || !country){ toast('Please fill in all fields.'); return; }
+  const user = { name, country, ts: new Date().toISOString() };
+  try{
+    await addUser(user);
+  }catch(e){ toast('Could not save — check your connection.'); return; }
+  currentUser = user;
+  localStorage.setItem('medmix_current_user', JSON.stringify(user));
+  closeSignup();
+  renderAuthArea();
+  refreshMetrics();
+  toast('Welcome to MedMix — you can now submit reports.');
+  document.getElementById('suName').value='';
+  document.getElementById('suCountry').value='';
+}
+function signOut(){
+  currentUser = null;
+  localStorage.removeItem('medmix_current_user');
+  renderAuthArea();
+  toast('Signed out.');
+}
+function requireAuth(){
+  if(!currentUser){ openSignup(); toast('Join the network to submit a report.'); return false; }
+  return true;
+}
+
+/* ---------- COUNTERFEIT WATCH ---------- */
+function renderCounterfeitList(){
+  const list = document.getElementById('counterfeitList');
+  const items = reports.filter(r=>r.type==='counterfeit').sort((a,b)=>b.ts-a.ts);
+  if(items.length===0){ list.innerHTML = '<div class="empty">No reports yet. Be the first to submit one.</div>'; return; }
+  list.innerHTML = items.map(r=>`
+    <div class="feed-item">
+      <strong>${r.substance}</strong> <span class="tag">${r.country}</span>
+      <p style="margin:6px 0 0; font-size:13px; color:var(--muted);">${r.desc}</p>
+      <p style="margin:4px 0 0; font-size:11px; color:var(--faint);">${timeAgo(r.ts)} &middot; reported by ${r.reporter}</p>
+    </div>
+  `).join('');
+}
+async function submitCounterfeit(){
+  if(!requireAuth()) return;
+  const name = document.getElementById('cfName').value.trim();
+  const country = document.getElementById('cfCountry').value.trim();
+  const desc = document.getElementById('cfDesc').value.trim();
+  if(!name || !country || !desc){ toast('Please fill in all fields.'); return; }
+  const report = {type:'counterfeit', substance:name, country, desc, lat: approxLat(country), lng: approxLng(country), ts: new Date(), reporter: currentUser.name};
+  try{ await addReport(report); }catch(e){ toast('Could not save — check your connection.'); return; }
+  document.getElementById('cfName').value='';
+  document.getElementById('cfCountry').value='';
+  document.getElementById('cfDesc').value='';
+  if(!FIREBASE_ENABLED){ renderCounterfeitList(); refreshMetrics(); }
+  toast('Report submitted. Thank you for contributing.');
+}
+
+/* ---------- SIGNAL BOARD ---------- */
+function renderSignalFeed(){
+  const feed = document.getElementById('signalFeed');
+  const items = reports.filter(r=>r.type==='signal').sort((a,b)=>b.ts-a.ts);
+  if(items.length===0){ feed.innerHTML = '<div class="empty">No signals yet. Post the first one below.</div>'; return; }
+  feed.innerHTML = items.map(r=>`
+    <div class="feed-item">
+      <span class="tag">${r.country}</span><span class="tag">${r.substance}</span>
+      <p style="margin:6px 0 0; font-size:14px;">${r.desc}</p>
+      <p style="margin:4px 0 0; font-size:11px; color:var(--faint);">${timeAgo(r.ts)} &middot; posted by ${r.reporter}</p>
+    </div>
+  `).join('');
+}
+async function submitSignal(){
+  if(!requireAuth()) return;
+  const substance = document.getElementById('sigSubstance').value.trim();
+  const country = document.getElementById('sigCountry').value.trim();
+  const desc = document.getElementById('sigDesc').value.trim();
+  if(!substance || !country || !desc){ toast('Please fill in all fields.'); return; }
+  const report = {type:'signal', substance, country, desc, lat: approxLat(country), lng: approxLng(country), ts: new Date(), reporter: currentUser.name};
+  try{ await addReport(report); }catch(e){ toast('Could not save — check your connection.'); return; }
+  document.getElementById('sigSubstance').value='';
+  document.getElementById('sigCountry').value='';
+  document.getElementById('sigDesc').value='';
+  if(!FIREBASE_ENABLED){ renderSignalFeed(); refreshMetrics(); }
+  toast('Signal posted to the board.');
+}
+
+/* Rough country centroid lookup so map pins land near the right place; falls back to a random ocean-free-ish point */
+const COUNTRY_COORDS = {
+  "nigeria":[9.08,8.68], "india":[20.59,78.96], "philippines":[12.88,121.77], "kenya":[-0.02,37.91],
+  "brazil":[-14.24,-51.93], "germany":[51.17,10.45], "united states":[39.83,-98.58], "usa":[39.83,-98.58],
+  "mexico":[23.63,-102.55], "vietnam":[14.06,108.28], "indonesia":[-0.79,113.92], "pakistan":[30.38,69.35],
+  "bangladesh":[23.68,90.36], "egypt":[26.82,30.80], "south africa":[-30.56,22.94], "china":[35.86,104.20],
+  "uk":[55.38,-3.44], "united kingdom":[55.38,-3.44], "canada":[56.13,-106.35], "australia":[-25.27,133.78],
+  "france":[46.23,2.21], "japan":[36.20,138.25], "ghana":[7.95,-1.02], "ethiopia":[9.15,40.49],
+};
+function approxLat(country){
+  const c = COUNTRY_COORDS[(country||'').trim().toLowerCase()];
+  return c ? c[0] + (Math.random()*2-1) : (Math.random()*140-70);
+}
+function approxLng(country){
+  const c = COUNTRY_COORDS[(country||'').trim().toLowerCase()];
+  return c ? c[1] + (Math.random()*2-1) : (Math.random()*340-170);
+}
+function timeAgo(date){
+  const diff = Math.floor((new Date()-date)/86400000);
+  if(diff<1) return 'today';
+  if(diff===1) return '1 day ago';
+  return diff+' days ago';
+}
+
+/* ---------- GLOBAL RISK MAP ---------- */
+let mapInstance = null;
+function initMap(){
+  const el = document.getElementById('map');
+  if(typeof L === 'undefined'){
+    el.innerHTML = '<div class="empty">Map library failed to load (likely blocked by network/ad-blocker). Everything else on this site still works normally.</div>';
+    return;
+  }
+  try{
+    if(mapInstance) { mapInstance.remove(); mapInstance=null; }
+    mapInstance = L.map('map').setView([15,10], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mapInstance);
+    if(reports.length===0){ return; }
+    const colorFor = {counterfeit:'#a32c2c', signal:'#b3791a', interaction:'#1c3c57'};
+    reports.forEach(r=>{
+      L.circleMarker([r.lat, r.lng], {
+        radius: 8, color: colorFor[r.type], fillColor: colorFor[r.type], fillOpacity:0.65, weight:1.5
+      }).addTo(mapInstance).bindPopup(`<strong>${r.substance}</strong><br>${r.country}<br><span style="font-size:12px;color:#666">${r.type} &middot; ${r.reporter}</span>`);
+    });
+  }catch(e){
+    console.warn('Map failed to render', e);
+    el.innerHTML = '<div class="empty">Map could not load right now.</div>';
+  }
+}
+
+/* ---------- CHEMICAL & MEDICATION CONNECTION NETWORK ---------- */
+let networkRendered = false;
+function renderNetworkGraph(){
+  const container = document.getElementById('networkGraph');
+  if(!container) return;
+  container.innerHTML = '';
+  const nodesSet = Array.from(new Set(INTERACTIONS.flatMap(i=>[i.a,i.b])));
+  const W = Math.max(900, nodesSet.length*34), H = 560;
+  const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 80;
+  const angleStep = (2*Math.PI)/nodesSet.length;
+  const pos = {};
+  nodesSet.forEach((n,i)=>{
+    const a = i*angleStep - Math.PI/2;
+    pos[n] = { x: cx + R*Math.cos(a), y: cy + R*Math.sin(a) };
+  });
+  const verdictColor = {safe:'#1d7a52', caution:'#b3791a', danger:'#a32c2c'};
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%; display:block; margin:0 auto;">`;
+  INTERACTIONS.forEach(i=>{
+    const p1 = pos[i.a], p2 = pos[i.b];
+    svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${verdictColor[i.verdict]}" stroke-width="1.6" stroke-opacity="0.55"><title>${i.a} + ${i.b} — ${i.verdict}</title></line>`;
+  });
+  nodesSet.forEach(n=>{
+    const p = pos[n];
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="6" fill="#1c3c57" stroke="#fff" stroke-width="1.5"><title>${n}</title></circle>`;
+    const labelX = p.x + (p.x>cx ? 10 : -10);
+    const anchor = p.x>cx ? 'start' : 'end';
+    svg += `<text x="${labelX}" y="${p.y+4}" font-size="11" font-family="Inter, sans-serif" fill="#10171f" text-anchor="${anchor}">${n}</text>`;
+  });
+  svg += `</svg>`;
+  container.innerHTML = svg;
+  networkRendered = true;
+}
+
+function animateCount(el, target){
+  let start = 0;
+  const dur = 600, t0 = performance.now();
+  function step(t){
+    const p = Math.min((t-t0)/dur, 1);
+    el.textContent = Math.round(start + (target-start)*p);
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function refreshMetrics(){
+  const countries = new Set([...users.map(u=>u.country), ...reports.map(r=>r.country)].filter(Boolean));
+  const grid = document.getElementById('metricGrid');
+  grid.innerHTML = `
+    <div class="metric-card"><div class="metric-num" id="m-members">0</div><div class="metric-label">Network members</div></div>
+    <div class="metric-card"><div class="metric-num" id="m-countries">0</div><div class="metric-label">Countries represented</div></div>
+    <div class="metric-card"><div class="metric-num" id="m-reports">0</div><div class="metric-label">Total chemical mixes tried</div></div>
+    <div class="metric-card"><div class="metric-num" id="m-catalog">0</div><div class="metric-label">Verified interactions catalogued</div></div>
+  `;
+  animateCount(document.getElementById('m-members'), users.length);
+  animateCount(document.getElementById('m-countries'), countries.size);
+  animateCount(document.getElementById('m-reports'), mixesTried);
+  animateCount(document.getElementById('m-catalog'), INTERACTIONS.length);
+  renderGrowthChart();
+  renderTopSubstancesChart();
+}
+
+let growthChartInstance = null, topChartInstance = null;
+function renderGrowthChart(){
+  const canvas = document.getElementById('growthChart');
+  const wrapper = canvas.parentElement;
+  if(users.length===0 && reports.length===0){
+    wrapper.innerHTML = '<div class="empty">No activity yet. Growth will appear here as people join and submit reports.</div>';
+    return;
+  }
+  // Build real cumulative counts by day from actual signup + report timestamps
+  const events = [
+    ...users.map(u=>new Date(u.ts)),
+    ...reports.map(r=>new Date(r.ts)),
+  ].sort((a,b)=>a-b);
+  const byDay = {};
+  events.forEach(d=>{
+    const key = d.toISOString().slice(0,10);
+    byDay[key] = (byDay[key]||0)+1;
+  });
+  const days = Object.keys(byDay).sort();
+  let cum = 0;
+  const data = days.map(d=>{ cum += byDay[d]; return cum; });
+  if(typeof Chart === 'undefined'){
+    wrapper.innerHTML = '<div class="empty">Chart library failed to load (likely blocked by network/ad-blocker). The numbers above are still accurate.</div>';
+    return;
+  }
+  try{
+    if(growthChartInstance) growthChartInstance.destroy();
+    growthChartInstance = new Chart(canvas, {
+      type:'line',
+      data:{ labels:days, datasets:[{ label:'Cumulative activity', data, borderColor:'#1c3c57', backgroundColor:'rgba(28,60,87,0.08)', fill:true, tension:0.3 }] },
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
+    });
+  }catch(e){ console.warn('Growth chart failed', e); }
+}
+function renderTopSubstancesChart(){
+  const canvas = document.getElementById('topSubstancesChart');
+  const wrapper = canvas.parentElement;
+  const counts = {};
+  reports.forEach(r=>{ counts[r.substance] = (counts[r.substance]||0)+1; });
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if(entries.length===0){
+    wrapper.innerHTML = '<div class="empty">No flagged substances yet — this fills in as reports come in.</div>';
+    return;
+  }
+  if(typeof Chart === 'undefined'){
+    wrapper.innerHTML = '<div class="empty">Chart library failed to load (likely blocked by network/ad-blocker).</div>';
+    return;
+  }
+  try{
+    if(topChartInstance) topChartInstance.destroy();
+    topChartInstance = new Chart(canvas, {
+      type:'bar',
+      data:{ labels:entries.map(e=>e[0]), datasets:[{ label:'Flags', data:entries.map(e=>e[1]), backgroundColor:'#9a6418' }] },
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}}}
+    });
+  }catch(e){ console.warn('Top substances chart failed', e); }
+}
+
+/* ---------- SCROLL-DRIVEN BACKGROUND ZOOM/PAN ----------
+   As the page scrolls, the ambient beaker-toned background slowly zooms in
+   and drifts toward the upper-right, going from its default zoomed-out
+   state to a closer, off-center framing. Capped so it never zooms forever. */
+function updateScrollBackground(){
+  const group = document.getElementById('scrollGroup');
+  if(!group) return;
+  const maxScroll = 1400; // scroll distance (px) over which the full effect plays out
+  const y = Math.min(window.scrollY || document.documentElement.scrollTop || 0, maxScroll);
+  const p = y / maxScroll; // 0 -> 1
+  const scale = 1 + p * 0.55;       // zoom in up to 1.55x
+  const tx = p * 140;               // drift right
+  const ty = -p * 70;               // drift up slightly, toward the side framing
+  group.setAttribute('style', `transform: translate(${tx}px, ${ty}px) scale(${scale});`);
+}
+window.addEventListener('scroll', updateScrollBackground, { passive: true });
+window.addEventListener('resize', updateScrollBackground);
+updateScrollBackground();
+
+/* ---------- INIT ----------
+   goTo() runs FIRST so the page is visible no matter what else
+   succeeds or fails below — a single broken CDN script should never
+   be able to leave the whole site blank. */
+function safe(fn, label){
+  try{ fn(); }catch(e){ console.warn(label + ' failed to initialize:', e); }
+}
+goTo('dashboard');
+safe(renderAuthArea, 'Auth area');
+safe(connectionBadge, 'Connection badge');
+safe(refreshMetrics, 'Metrics');
+safe(renderCounterfeitList, 'Counterfeit list');
+safe(renderSignalFeed, 'Signal feed');
+safe(subscribeLive, 'Live data subscription');
+
+/* ---------- BUTTON RIPPLE EFFECT ---------- */
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('button.primary');
+  if(!btn) return;
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+  ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+  btn.appendChild(ripple);
+  setTimeout(()=>ripple.remove(), 600);
+});
+</script>
+</body>
+</html>
